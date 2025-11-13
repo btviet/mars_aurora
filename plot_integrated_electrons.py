@@ -246,7 +246,6 @@ def calculate_scaling_factor_v2():
 
 
     bin_center_list = []
-    print("Columns: ", df_electron_may.columns)
     for energy_bin in df_electron_may.columns:
         #print("energy_bin: ", type(energy_bin), energy_bin)
 
@@ -338,10 +337,87 @@ def calculate_scaling_factor_v2():
 
     march_scaling_factor = march_rayleighs/interpolated_sum_value_march
     print(f'Scaling factor March: {march_scaling_factor}')
-    
+
     print("-------------------------")
     prediction_may_rayleighs =  march_scaling_factor*interpolated_sum_value_may
     print(f'Prediction for May Rayleighs: {prediction_may_rayleighs}')
+
+
+def calculate_scaling_factor_non_observations():
+    attempts = [1, 2, 3, 6, 7, 8] 
+    minutes = [35, 56, 4, 15, 0, 21]
+    march_scaling_factor = 7.28641529867968e-05
+    for attempt in attempts:
+        print(f'Observation time {obs_times[attempt-1]}')
+        obs_start =  obs_times[attempt-1] - pd.Timedelta(hours=5)
+        obs_end = obs_times[attempt-1] + pd.Timedelta(hours=5)
+        filename = 'maven_f_flux_hr_aurora_attempt_' + str(attempt)
+        df =  read_maven_sep_flux_data(filename) 
+        numeric_cols = df.select_dtypes(include='number').columns # only numeric columns
+        df[numeric_cols] = df[numeric_cols].mask(df[numeric_cols] > 999999)
+        indices= df[(df['datetime']>=obs_start) & (df['datetime'] <= obs_end)].index
+
+        sliced_df = df.iloc[indices].reset_index()
+        df_electron_flux = sliced_df.iloc[:,32:-2]
+        df_ion_flux = sliced_df.iloc[:,4:32]
+        df_datetime = sliced_df["datetime"]
+        df_electron = pd.concat([df_datetime, df_electron_flux], axis=1)
+        df_ion = pd.concat([df_datetime, df_ion_flux], axis=1)
+
+        df_electron.set_index('datetime', inplace=True)
+        df_electron = df_electron.iloc[:, ::-1]
+            
+        df_ion.set_index('datetime', inplace=True)
+        df_ion = df_ion.iloc[:, ::-1]
+
+        bin_center_list = []
+        for energy_bin in df_electron.columns:
+            boundaries = energy_bin[:-6].split('-')
+            lower_boundary = float(boundaries[0])
+            upper_boundary = float(boundaries[1])
+            bin_width = upper_boundary-lower_boundary
+            bin_center = round(np.average([lower_boundary, upper_boundary]),3)
+            bin_center_list.append(str(bin_center))
+
+            #if attempt == 1:
+            #    print("bin width: ", bin_width)
+            #    print("bin center:", bin_center)
+               
+            df_electron[str(bin_center)] = df_electron[energy_bin]*bin_width*bin_center
+        #print(df_electron.columns)
+        #if attempt == 1:
+        #    print(df_electron[["20.3-21.7 keV,e","21.0"]])
+        df_electron = df_electron[bin_center_list]
+        df_electron["sum"] = df_electron.sum(axis=1)
+        df_electron.reset_index(inplace=True)
+
+
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        ax1.plot(df_electron["datetime"], df_electron["sum"], '-o', label='summed electron fluxes')
+        ax1.axvline(obs_times[attempt-1], color='black', linestyle='dashed', label='observation time')
+        ax1.legend()
+        plt.show()
+        print(df_electron[["datetime", "sum"]])
+        if attempt == 1:
+            df_electron.to_csv("files/integrated_electron_channels_attempt_1.csv", sep="\t")
+        diff = df_electron["sum"].iloc[5]-df_electron["sum"].iloc[4]
+        print("Between ", df_electron["datetime"].iloc[4], df_electron["datetime"].iloc[5])
+        print("the diff is ", diff)
+        
+        diff_per_minute = diff/60 
+        print("Diff per minute is then ", diff_per_minute)
+        attempt_index = attempts.index(attempt)
+        print("attempt_index: ", attempt_index)
+        interpolated_sum_value = df_electron["sum"].iloc[4]+diff_per_minute*minutes[attempt_index]
+        print(f'Interpolated value of sum: {interpolated_sum_value}')
+
+
+
+        print("-------------------------")
+        prediction_rayleighs =  march_scaling_factor*interpolated_sum_value
+        print(f'Prediction for attempt {attempt} Rayleighs: {prediction_rayleighs}')
+
+
 
 if __name__ == "__main__":
 
@@ -359,6 +435,7 @@ if __name__ == "__main__":
 
     
     """
+    calculate_scaling_factor_non_observations()
     # plot_integrated_electron_channels()
     # calculate_scaling_factor()
-    calculate_scaling_factor_v2()
+    # calculate_scaling_factor_v2()
