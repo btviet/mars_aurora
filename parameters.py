@@ -11,3 +11,10 @@ colors_list = [color_ion_low,
                 color_ion_high, 
                 color_electron_low, 
                 color_electron_high]
+
+from paths import get_project_root, get_data_dir
+
+
+DATA_DIR = get_data_dir()
+
+
