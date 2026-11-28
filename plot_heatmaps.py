@@ -8,6 +8,7 @@ import seaborn as sns
 import matplotlib.patches as patches
 
 from read_maven_sep import read_maven_sep_flux_data
+from read_mavenpy import load_maven_f_particle_flux
 from parameters import (
     FONTSIZE_AXES_LABELS,
     FONTSIZE_AXES_TICKS,
@@ -410,9 +411,112 @@ def plot_heatmap_one_attempt(filename):
     plt.show()
 
 
+def plot_heatmap():
+    
+    df_ion, df_electron = load_maven_f_particle_flux(start_date='2024-03-17', end_date='2024-03-18', 
+                                      sensor='s2')
+
+    
+    df_ion = df_ion[(df_ion['datetime']>=datetime.strptime("2024-03-17 00:00:00", "%Y-%m-%d %H:%M:%S")) & 
+            (df_ion['datetime'] <= datetime.strptime("2024-03-18 23:15:00", "%Y-%m-%d %H:%M:%S"))]
+
+    df_electron = df_electron[(df_electron['datetime']>=datetime.strptime("2024-03-17 00:00:00", "%Y-%m-%d %H:%M:%S")) & 
+            (df_electron['datetime'] <= datetime.strptime("2024-03-18 23:15:00", "%Y-%m-%d %H:%M:%S"))]
+
+    df_ion.set_index('datetime', inplace=True)
+    df_electron.set_index('datetime', inplace=True)
+
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 12), sharex=True)
+
+    x_ion = df_ion.index
+    y_ion = np.arange(df_ion.shape[1])
+
+    mesh = axes[0].pcolormesh(x_ion, y_ion, df_ion.T.to_numpy(),
+                            cmap="nipy_spectral", norm=LogNorm(vmin=0.01, vmax=1e4), shading="nearest")
+
+    x_el = df_electron.index
+    y_el = np.arange(df_electron.shape[1])
+    axes[1].pcolormesh(x_el, y_el, df_electron.T.to_numpy(),
+                    cmap="nipy_spectral", norm=LogNorm(vmin=0.01, vmax=1e4), shading="nearest")
+
+
+
+    for ax in axes:
+        #ax.axvline(x=current_date,
+        #        linestyle='solid',
+        #        color='black',
+        #        label='')
+        
+        #ax.axvline(x=donki_predict_date,
+        #        linestyle='dashed',
+        #        color='black',
+        #        label='')
+
+        #donki_date = datetime.strptime("2024-05-20 20:00:00", "%Y-%m-%d %H:%M:%S"),
+        #ax.axvline(x=donki_date,
+        #        linestyle='dashed',
+        #        color='black',
+        #        label='')
+
+        # Colorbar
+        cax = axes[0].inset_axes([1.02, -1, 0.02, 2])   # [x, y, width, height] in axes coords
+        cbar = fig.colorbar(mesh, cax=cax)
+        cbar.set_label(r"$1/\mathrm{sec} \cdot \mathrm{cm}^2 \cdot \mathrm{ster} \cdot \mathrm{KeV}$")
+
+        fig.subplots_adjust(right=0.9)  
+        #cbar = fig.colorbar(mesh, ax=axes[0:2], orientation="vertical")
+
+
+        ion_upper_bounds = [float(col.split('-')[1].split()[0]) for col in df_ion.columns]
+
+
+
+        ion_axis_ticks = ion_upper_bounds[::3]
+        ion_tick_indices = [i for i, value in enumerate(ion_upper_bounds) if value in ion_axis_ticks]
+        ion_tick_labels = [int(value) if value.is_integer() else value for value in ion_axis_ticks]  
+        axes[0].set_yticks(ion_tick_indices)
+        axes[0].set_yticklabels(ion_tick_labels, fontsize=FONTSIZE_AXES_TICKS)
+
+        # electron_lower_bounds = [float(col.split('-')[0]) for col in df_electron.columns]
+        electron_upper_bounds = [float(col.split('-')[1].split()[0]) for col in df_electron.columns]
+        electron_axis_ticks = electron_upper_bounds[::2]
+        electron_tick_indices = [i for i, value in enumerate(electron_upper_bounds) if value in electron_axis_ticks]
+        electron_tick_labels =  [int(value) if value.is_integer() else value for value in electron_axis_ticks] 
+    
+        axes[1].set_yticks(electron_tick_indices)
+        axes[1].set_yticklabels(electron_tick_labels, fontsize=FONTSIZE_AXES_TICKS)
+        axes[0].tick_params(which='major', axis='y', length=10)  
+        axes[0].tick_params(which='minor', axis='y', length=6) 
+
+        axes[1].tick_params(which='major', axis='y', length=10)  
+        axes[1].tick_params(which='minor', axis='y', length=6) 
+
+        #axes[1].tick_params(which='minor', axis='x', length=6) 
+        #axes[1].tick_params(which='major', axis='x', length=10) 
+
+
+        axes[0].set_ylabel('Ion energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
+        axes[1].set_ylabel('Electron energy [keV]', fontsize=FONTSIZE_AXES_LABELS)
+      
+
+  
+        plt.subplots_adjust(left=0.1, bottom=0.05, 
+                            hspace=0.1)
+
+        fig.suptitle('test',
+                    fontsize=18,
+                    y=0.91)
+    plt.show()
+        #plt.savefig(f'attempt_{count}_complete.png', 
+        #                    dpi=300, transparent=False)
+        
+
+
 
 if __name__ == "__main__":
     # plot_heatmaps_all_attempts()
     # plot_heatmaps_all_attempts_electrons_only()
-    filename = "maven_f_flux_hr_aurora_attempt_1"
-    plot_heatmap_one_attempt(filename)
+    # filename = "maven_f_flux_hr_aurora_attempt_1"
+    # plot_heatmap_one_attempt(filename)
+    plot_heatmap()
