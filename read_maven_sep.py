@@ -24,7 +24,7 @@ def read_maven_sep_flux_data(filename):
         Contains the MAVEN/SEP flux data
         
     """
-    path = "omniweb/"  # Change filepath to where files are located
+    path = "files/omniweb/"  # Change filepath to where files are located
     fmt_filename = filename + '.fmt'
     data_filename = filename + '.lst'
 
